@@ -188,7 +188,7 @@ class M3F_TIB:
                         theta_V_star[k_idx] = self.theta_V[i,j]*exp(-(X[(i,j)] - self.chi_0 - self.c_[i, k_idx] - self.d[self.z_U[i,j], j] - np.dot(self.U_[i,:], self.V_[:,j]))**2/(2*self.sigmaSqd))
                     self.z_V[i,j] = multinomial(1, theta_V_star/sum(theta_V_star))
 
-
+	# An iteration of Gibbs sampler
         def Gibbs(self):
             self.sample_hyperparameters()
             self.sample_topics()
@@ -199,10 +199,21 @@ class M3F_TIB:
             
         def main(self):
             self.initial_sample()
+	    self.dictionary_index_mapping()
             for i in xrange(self.n_iters):
                 self.Gibbs()
             
-        
+	# matrix completion
         def compute_ratings(self, i, j):
             r_ij = normal(self.chi_O + self.c[i,self.z_V[i,j]] + self.d[self.z_U[i,j], j] + np.dot(self.U[i,:], self.V[:,j]), self.sigmaSqd)
             return r_ij
+
+	def compute_test_error(self, X_test):
+	    # instantiate an error function		
+	    preds = {}
+	    for i,j in X_test.keys():
+		preds[(i,j)] = self.compute_ratings(i,j)
+	    return self.cost_function(preds.values(), X_test.values())
+
+
+
