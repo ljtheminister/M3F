@@ -51,6 +51,14 @@ class M3F_TIB:
         self.theta_U = np.repeat(np.zeros(self.K_U, self.N)).reshape((self.N, self.K_U))
         self.theta_K = np.repeat(np.zeros(self.K_V, self.N)).reshape((self.M, self.K_U))
 
+	def dictionary_index_mapping(self, d):
+	    I_U, I_V = {}, {}
+	    for i,j in d.keys():
+		I_U[i].append(j)	
+		I_V[j].append(i)
+	    self.I_U = I_U
+	    self.I_V = I_V
+
         def initial_sample(self):
             '''
             draw random sample from model prior
@@ -102,7 +110,7 @@ class M3F_TIB:
                 for k in xrange(self.K_U):
                     z_sum = 0 
                     mean_sum = 0
-                    for j in I_U[i]:
+                    for j in self.I_U[i]:
                         z_sum += self.z_U[i,j] 
                         resid = X[(i,j)] - self.chi_0 - self.d[j,k] - np.dot(self.U[i,:], self.V[:,j])
                         mean_sum += self.z_U[i,j]*resid
@@ -114,7 +122,7 @@ class M3F_TIB:
                 for k in xrange(self.K_V):
                     z_sum = 0
                     mean_sum = 0 
-                    for i in I_V[j]:
+                    for i in self.I_V[j]:
                         z_sum += self.z_V[i,j]
                         resid = X[(i,j)] - self.chi_0 - self.c[i,k] - np.dot(self.U[i,:], self.V[:,j])
                         mean_sum += self.z_V[i,j]*resid
@@ -140,7 +148,7 @@ class M3F_TIB:
             for j in xrange(self.M):
                 resid_sum = np.zeros(self.D)
                 outer_product_sum = np.zeros((self.D, self.D))
-                for j in I_V[i]:
+                for j in self.I_V[i]:
                     u = self.V[i,:]
                     outer_product_sum += np.outer(u, u)
                     resid = X[(i,j)] - self.chi_0 - self.c[i, self.z_V[i,j]] - self.d[self.z_V[i,j], j]
@@ -150,12 +158,13 @@ class M3F_TIB:
 
 
         def sample_topic_parameters(self):
+	    # user topic assignment
             for i in xrange(self.N):
                 z_sum = 0
-                for j in I_U[i]:
+                for j in self.I_U[i]:
                     z_sum += self.z_U[i,j]
                 self.theta_U[i] = dirichlet(self.alpha/self.K_U + z_sum)
-
+	    # item topic assigment
             for j in xrange(self.M):
                 z_sum = 0
                 for i in I_V[j]: 
@@ -173,7 +182,7 @@ class M3F_TIB:
 
             # item topics
             for j in xrange(self.M):
-                for i in I_V[j]:
+                for i in self.I_V[j]:
                     theta_V_star = np.zeros(self.K_V)
                     for k_idx, k in enumerate(self.z_V[:,j]):
                         theta_V_star[k_idx] = self.theta_V[i,j]*exp(-(X[(i,j)] - self.chi_0 - self.c_[i, k_idx] - self.d[self.z_U[i,j], j] - np.dot(self.U_[i,:], self.V_[:,j]))**2/(2*self.sigmaSqd))
