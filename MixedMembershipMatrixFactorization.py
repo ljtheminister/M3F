@@ -15,20 +15,28 @@ from numpy.random import multinomial
 from joblib import Parallel, delayed
 
 class M3F_TIB:
-    def __init__(self, X, N, M, W_0, v_0, D, lambda_0, sigmaSqd_0, sigmaSqd, c_0, d_0, chi_0, K_U, K_V, alpha, mu_0, n_iter=100):
+    def __init__(self, X, N, M, D, lambda_0, sigmaSqd_0, sigmaSqd, c_0, d_0, chi_0, K_U, K_V, alpha, W_0, v_0, mu_0, n_iter=100):
 	self.X = X #X:= data is a dictionary because the data is sparse
         self.N = N
         self.M = M
         self.n_iter = n_iter
         self.D = D
+        self.alpha = alpha
 
-        W_0_shape = W_0.shape
-        assert W_0_shape[0] == W_0_shape[1], 'W_0 is not a square matrix'
-        assert W_0_shape[0] == d, 'W_0 is not a square matrix of dimensionality d'
-        assert v_0 > d-1
+	if W_0 == None:
+	    self.W_0 = np.identity(D)
+	else:
+	    W_0_shape = W_0.shape
+	    assert W_0_shape[0] == W_0_shape[1], 'W_0 is not a square matrix'
+	    assert W_0_shape[0] == d, 'W_0 is not a square matrix of dimensionality d'
+
+	if v_0 == None:
+	    self.v_0 = D
+	else:
+	    assert v_0 > D-1
+	    self.v_0 = v_0
 
         # take inputs
-        self.alpha = alpha
         self.lambda_0 = lambda_0
         self.W_0 = W_0
         self.v_0 = v_0
@@ -50,6 +58,8 @@ class M3F_TIB:
         # probability distribution of topics 
         self.theta_U = np.repeat(np.zeros(self.K_U, self.N)).reshape((self.N, self.K_U))
         self.theta_K = np.repeat(np.zeros(self.K_V, self.N)).reshape((self.M, self.K_U))
+
+
 
 	def dictionary_index_mapping(self, d):
 	    I_U, I_V = {}, {}
@@ -75,16 +85,15 @@ class M3F_TIB:
             # mean vectors 
             self.mu_U = self.mu_0
             self.mu_V = self.mu_0
-
+	    # biases for user and item
             self.c = self.c + self.c_0
             self.d = self.d + self.d_0
-
+	    # initialize sample means
             self.sample_u = self.mu_0
             self.sample_v = self.mu_0
-
+	    # initialize lower dimensional vector
             self.U = np.repeat(self.sample_u, self.N).reshape((self.N, self.D))
             self.V = np.repeat(self.sample_v, self.M).reshape((self.D, self.M))
-
 
         def sample_hyperparameters(self):
             for t in xrange(self.n_iter):
@@ -106,6 +115,7 @@ class M3F_TIB:
 
 
         def sample_topics(self):
+	    # user topics
             for i in xrange(self.N):    
                 for k in xrange(self.K_U):
                     z_sum = 0 
@@ -117,7 +127,7 @@ class M3F_TIB:
                     std = 1./(1./self.sigmaSqd_0 + z_sum/self.Sqd)
                     mean = (self.c_0/self.sigmaSqd_0 + mean_sum/self.Sqd)*std
                     self.c[i,k] = normal(mean, std)
-
+	    # item topics
             for j in xrange(self.M):
                 for k in xrange(self.K_V):
                     z_sum = 0
@@ -129,7 +139,6 @@ class M3F_TIB:
                     std = 1./(1./self.sigmaSqd_0 + z_sum/self.Sqd)
                     mean = (self.c_0/self.sigmaSqd_0 + mean_sum/self.Sqd)*std
                     self.d[j,k] = normal(mean, std)
-
 
         def sample_user_parameters(self):
             for i in xrange(self.N):
@@ -143,7 +152,6 @@ class M3F_TIB:
                 lambda_U_star = self.precision_U + outer_product_sum/self.sigmaSqd
                 self.U[i,:] = multivariate_normal(pinv(lambda_U_star)*(self.precision_U*self.mu_U + resid_sum/self.sigmaSqd), pinv(lambda_U_star))
 
-
         def sample_item_parameters(self):
             for j in xrange(self.M):
                 resid_sum = np.zeros(self.D)
@@ -155,7 +163,6 @@ class M3F_TIB:
                     resid_sum += u*resid
                 lambda_V_star = self.precision_V + outer_product_sum/self.sigmaSqd
                 self.V[:,j] = multivariate_normal(pinv(lambda_V_star)*(self.precision_V*self.mu_V + resid_sum/self.sigmaSqd), pinv(lambda_V_star))
-
 
         def sample_topic_parameters(self):
 	    # user topic assignment
@@ -214,6 +221,5 @@ class M3F_TIB:
 	    for i,j in X_test.keys():
 		preds[(i,j)] = self.compute_ratings(i,j)
 	    return self.cost_function(preds.values(), X_test.values())
-
 
 
