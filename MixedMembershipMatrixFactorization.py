@@ -39,7 +39,6 @@ class M3F_TIB:
         # take inputs
         self.lambda_0 = lambda_0
         self.W_0 = W_0
-        self.v_0 = v_0
         self.sigmaSqd_0 = sigmaSqd_0
         self.sigmaSqd = sigmaSqd
         self.c_0 = c_0
@@ -59,7 +58,9 @@ class M3F_TIB:
         self.theta_U = np.repeat(np.zeros(self.K_U, self.N)).reshape((self.N, self.K_U))
         self.theta_K = np.repeat(np.zeros(self.K_V, self.N)).reshape((self.M, self.K_U))
 
-
+	# initializing index maps
+	self.I_U = {}
+	self.I_V = {}
 
 	def dictionary_index_mapping(self, d):
 	    I_U, I_V = {}, {}
